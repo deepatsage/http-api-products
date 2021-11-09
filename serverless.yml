@@ -1,0 +1,52 @@
+service: product-api
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: "arn:aws:dynamodb:us-east-1:*:table/productdetails"
+  httpApi:
+    cors: true
+    authorizers:
+      http-api-jwt-authorizer:
+        # Point request header at which JWT token will be provided
+        identitySource: $request.header.Authorization
+        # Issuer url, in case of Cognito User Pools url will be like:
+        # https://cognito-idp.${region}.amazonaws.com/${cognitoPoolId}
+        issuerUrl: https://cognito-idp.us-east-1.amazonaws.com/XXXX
+        # Audience for which access is intended
+        # In case of Cognito User Pools we need to list client ids
+        audience:
+          - XXXXXX
+functions:
+  getProducts:
+    handler: src/getProducts.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /product
+          authorizer:
+            name: http-api-jwt-authorizer
+resources:
+  Resources:
+    usersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: productdetails
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
